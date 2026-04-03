@@ -5,3 +5,7 @@ syntax: glob
 *.orig
 *.*~
 *.pyc
+# Colcon / ROS generated artifacts
+build/
+install/
+log/

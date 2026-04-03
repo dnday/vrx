@@ -1,0 +1,26 @@
+# Menghubungkan Kamera Gazebo ke ROS 2
+- ros_topic_name: "/sydney/camera/image"
+  gz_topic_name: "/sydney/camera/image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+# Menghubungkan Perintah Gerak ROS 2 ke Gazebo
+- ros_topic_name: "/cmd_vel"
+  gz_topic_name: "/model/wamv/cmd_vel"
+  ros_type_name: "geometry_msgs/msg/Twist"
+  gz_type_name: "gz.msgs.Twist"
+  direction: ROS_TO_GZ
+
+# Monitor thrust commands published by ArduPilotPlugin
+- ros_topic_name: "/wamv/thrusters/left/thrust"
+  gz_topic_name: "/wamv/thrusters/left/thrust"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/wamv/thrusters/right/thrust"
+  gz_topic_name: "/wamv/thrusters/right/thrust"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: GZ_TO_ROS

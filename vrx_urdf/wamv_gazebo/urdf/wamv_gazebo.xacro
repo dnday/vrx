@@ -1,14 +1,72 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
   <!-- Include macros for dynamics plugins -->
-  <xacro:include filename="$(arg macros_file)" />
-  <!-- Macro to create a WAM-V with dyanmics plugins and a customizeable thruster layout -->
-  <xacro:macro  name="wamv_gazebo" params="thruster_layout">
+  <xacro:include filename="$(find wamv_gazebo)/urdf/macros.xacro" />
+
+  <!-- Macro to create a WAM-V with dynamics plugins and a customizable thruster layout -->
+  <xacro:macro name="wamv_gazebo" params="thruster_layout">
     <!-- Defines the base vehicle -->
     <xacro:include filename="$(find wamv_description)/urdf/wamv_base.urdf.xacro" />
-    <!-- Thruster Layout -->
-    <xacro:include filename="${thruster_layout}"/>
+
+    <!-- Thruster layout -->
+    <xacro:include filename="${thruster_layout}" />
+
     <!-- Attach hydrodynamics plugin -->
-    <xacro:usv_dynamics_gazebo name="wamv_dynamics_plugin"/>
+    <xacro:usv_dynamics_gazebo name="wamv_dynamics_plugin" />
+
+    <!-- Fallback IMU for ArduPilot when IMU sensors are not enabled elsewhere -->
+    <xacro:unless value="$(arg imu_enabled)">
+      <xacro:unless value="$(arg vrx_sensors_enabled)">
+        <link name="${namespace}/imu_wamv_link">
+          <inertial>
+            <mass value="0.1"/>
+            <inertia ixx="0.00000542" ixy="0.0" ixz="0.0" iyy="0.00002104" iyz="0.0" izz="0.00002604"/>
+          </inertial>
+        </link>
+        <joint name="${namespace}/imu_wamv_joint" type="fixed">
+          <origin xyz="0 0 0" rpy="0 0 0"/>
+          <parent link="${namespace}/base_link"/>
+          <child link="${namespace}/imu_wamv_link"/>
+        </joint>
+        <gazebo reference="${namespace}/imu_wamv_link">
+          <sensor name="imu_wamv_sensor" type="imu">
+            <always_on>1</always_on>
+            <update_rate>100</update_rate>
+          </sensor>
+        </gazebo>
+      </xacro:unless>
+    </xacro:unless>
+
+    <!-- ArduPilot SITL interface -->
+    <gazebo>
+      <plugin filename="ArduPilotPlugin" name="ArduPilotPlugin">
+        <fdm_port_in>9002</fdm_port_in>
+        <connectionTimeoutMs>5000</connectionTimeoutMs>
+        <connectionTimeoutMaxCount>5</connectionTimeoutMaxCount>
+        <lock_step>0</lock_step>
+        <model_type>rover</model_type>
+        <imuName>imu_wamv_sensor</imuName>
+        <control channel="0">
+          <type>COMMAND</type>
+          <jointName>${namespace}/left_engine_propeller_joint</jointName>
+          <cmd_topic>/wamv/thrusters/left/thrust</cmd_topic>
+          <multiplier>10000</multiplier>
+          <offset>0</offset>
+          <p_gain>1</p_gain>
+          <i_gain>0</i_gain>
+          <d_gain>0</d_gain>
+        </control>
+        <control channel="2">
+          <type>COMMAND</type>
+          <jointName>${namespace}/right_engine_propeller_joint</jointName>
+          <cmd_topic>/wamv/thrusters/right/thrust</cmd_topic>
+          <multiplier>10000</multiplier>
+          <offset>0</offset>
+          <p_gain>1</p_gain>
+          <i_gain>0</i_gain>
+          <d_gain>0</d_gain>
+        </control>
+      </plugin>
+    </gazebo>
   </xacro:macro>
 </robot>

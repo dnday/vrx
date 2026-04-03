@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+from launch_ros.actions import Node
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.actions import OpaqueFunction
@@ -21,6 +22,18 @@ import os
 
 import vrx_gz.launch
 from vrx_gz.model import Model
+
+
+ARDUPILOT_GZ_PLUGIN_PATH = '/home/marcel/ardupilot_gazebo/build'
+
+
+def _prepend_path(new_path, current_path):
+    if current_path:
+        entries = current_path.split(os.pathsep)
+        if new_path in entries:
+            return current_path
+        return os.pathsep.join([new_path, current_path])
+    return new_path
 
 
 def launch(context, *args, **kwargs):
@@ -37,6 +50,23 @@ def launch(context, *args, **kwargs):
     extra_gz_args = LaunchConfiguration('extra_gz_args').perform(context)
     robot_name = LaunchConfiguration('name').perform(context)
     model_type = LaunchConfiguration('model').perform(context)
+
+    current_plugin_path = os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', '')
+    os.environ['GZ_SIM_SYSTEM_PLUGIN_PATH'] = _prepend_path(
+        ARDUPILOT_GZ_PLUGIN_PATH,
+        current_plugin_path,
+    )
+
+    gz_partition = os.environ.get('GZ_PARTITION', '')
+    if gz_partition:
+        print(f'GZ_PARTITION detected and removed for SITL compatibility: {gz_partition}', flush=True)
+        os.environ.pop('GZ_PARTITION', None)
+
+    print('GZ_SIM_SYSTEM_PLUGIN_PATH active entries:', flush=True)
+    for plugin_path in os.environ['GZ_SIM_SYSTEM_PLUGIN_PATH'].split(os.pathsep):
+        if plugin_path:
+            print(f'  - {plugin_path}', flush=True)
+    print(f"GZ_PARTITION active value: {os.environ.get('GZ_PARTITION', '<unset>')}", flush=True)
 
     launch_processes = []
 
@@ -58,7 +88,25 @@ def launch(context, *args, **kwargs):
 
     if (sim_mode == 'bridge' or sim_mode == 'full') and bridge_competition_topics:
         launch_processes.extend(vrx_gz.launch.competition_bridges(world_name_base, competition_mode))
+    
+    pkg_vrx_gz = get_package_share_directory('vrx_gz')
 
+    bridge_config = os.path.join(pkg_vrx_gz, 'config', 'bridge.yaml')
+    custom_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        parameters=[{'config_file': bridge_config}],
+        output='screen'
+    )
+    launch_processes.append(custom_bridge)
+
+    vision_node = Node(
+        package='gamantaray_vision',
+        executable='vision_misi',
+        output='screen'
+    )
+    launch_processes.append(vision_node)
+    
     return launch_processes
 
 
